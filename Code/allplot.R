@@ -61,7 +61,7 @@ statseq_hmm = as.matrix(read.table("Data/statseq_hmm.txt", header = T))
 
 ########## I. Figure 1 ##########
 
-jpeg("Plots/allvar_traj.jpeg", width = 8900, height = 4450, units = 'px', res = 600)
+jpeg("Plots/figure_1.jpeg", width = 8900, height = 4450, units = 'px', res = 600)
 par(mfrow = c(1,2))
 par(mar = c(5,5,3,1))
 boxplot.matrix(statseq_smm, outline = F, axes = F, xlab = "", ylab = "", cex.lab = 2)
@@ -117,7 +117,7 @@ y01 = c(t(apply(trn, 2, rev)))
 dl = c(t(apply(ifelse(diag(10) == 1, "black", NA), 2, rev)))
 pt = c(t(apply(sim.jags$q50$trn, 2, rev)))
 
-jpeg("Plots/trn_density_simvar1.jpeg", width = 6324, height = 6324, units = 'px', res = 600)
+jpeg("Plots/figure_3.jpeg", width = 6324, height = 6324, units = 'px', res = 600)
 matlay = layout(matrix(c(0,1,2,3),2,2,T), c(1,15,15), c(1,15,15))
 par(mar = c(0,0,0,0))
 frame()
@@ -155,97 +155,101 @@ simmat2.25 = simmat2.hdi[1,,]
 simmat2.975 = simmat2.hdi[2,,]
 
 # Get RMSE for SMM (best, mid, worst trajectories will change with different simulations)
-rmse = function(mod, act) {	
-	out = rowSums(colSums(sweep(mod$sims.list$s, 2:3, act)^2, dims = 1))/mod$mcmc.info$n.samples
+rmse = function(mod, act, obs) {	
+	out = (rowSums(colSums(sweep(mod$sims.list$s, 2:3, act)^2, dims = 1))/mod$mcmc.info$n.samples)/rowSums(is.na(obs))
 	return(out)
 }
-simvar1.rmse = rmse(sim.jags, statseq_smm)
-which.min(simvar1.rmse); order(simvar1.rmse)[25]; which.max(simvar1.rmse)
-simvar2.rmse = rmse(ndhmm.jags, statseq_smm)
-which.min(simvar2.rmse); order(simvar2.rmse)[25]; which.max(simvar2.rmse)
+simvar1.rmse = rmse(sim.jags, statseq_smm, actmat)
+simvar2.rmse = rmse(ndhmm.jags, statseq_smm, actmat)
+
+# Store best/mid/worst indices
+sv1.idx = c(which.min(simvar1.rmse), order(simvar1.rmse)[25], which.max(simvar1.rmse))
+sv2.idx = c(which.min(simvar2.rmse), order(simvar2.rmse)[25], which.max(simvar2.rmse))
 
 # For variation 1 applied to data set 1
-jpeg("Plots/bestmidworst_traj_simvar1.jpeg", width = 10800, height = 3600, units = 'px', res = 600)
+jpeg("Plots/figure_4a.jpeg", width = 9000, height = 3000, units = 'px', res = 600)
 par(mfrow = c(1,3))
 par(mar = c(5,5,3,1), oma = c(2,2,0,0))
-plot(simmat1.med[11,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(simmat1.med[sv1.idx[1],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(simmat1.25[11,], rev(simmat1.975[11,])), border = F, col = "gray")
-lines(seq(ndays), simmat1.med[11,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(simmat1.25[sv1.idx[1],], rev(simmat1.975[sv1.idx[1],])), border = F, col = "gray")
+lines(seq(ndays), simmat1.med[sv1.idx[1],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[11,i]), NA, 9)}
-points(seq(ndays), simmat1.med[11,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_smm[11,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[sv1.idx[1],i]), NA, 9)}
+points(seq(ndays), simmat1.med[sv1.idx[1],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_smm[sv1.idx[1],], lwd = 2)
 
 par(mar = c(5,5,3,1))
-plot(simmat1.med[29,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(simmat1.med[sv1.idx[2],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(simmat1.25[29,], rev(simmat1.975[29,])), border = F, col = "gray")
-lines(seq(ndays), simmat1.med[29,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(simmat1.25[sv1.idx[2],], rev(simmat1.975[sv1.idx[2],])), border = F, col = "gray")
+lines(seq(ndays), simmat1.med[sv1.idx[2],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[29,i]), NA, 9)}
-points(seq(ndays), simmat1.med[29,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_smm[29,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[sv1.idx[2],i]), NA, 9)}
+points(seq(ndays), simmat1.med[sv1.idx[2],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_smm[sv1.idx[2],], lwd = 2)
 
 par(mar = c(5,5,3,1))
-plot(simmat1.med[20,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(simmat1.med[sv1.idx[3],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(simmat1.25[20,], rev(simmat1.975[20,])), border = F, col = "gray")
-lines(seq(ndays), simmat1.med[20,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(simmat1.25[sv1.idx[3],], rev(simmat1.975[sv1.idx[3],])), border = F, col = "gray")
+lines(seq(ndays), simmat1.med[sv1.idx[3],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[20,i]), NA, 9)}
-points(seq(ndays), simmat1.med[20,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_smm[20,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[sv1.idx[3],i]), NA, 9)}
+points(seq(ndays), simmat1.med[sv1.idx[3],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_smm[sv1.idx[3],], lwd = 2)
 mtext("State", 2, cex = 2, line = -1, outer = T)
 mtext("Day", 1, cex = 2, line = -1, outer = T)
+mtext("SM", 3, cex = 2, line = -2, outer = T)
 dev.off()
 
 # For variation 2 applied to data set 1
-jpeg("Plots/bestmidworst_traj_simvar2.jpeg", width = 10800, height = 3600, units = 'px', res = 600)
+jpeg("Plots/figure_4b.jpeg", width = 9000, height = 3000, units = 'px', res = 600)
 par(mfrow = c(1,3))
 par(mar = c(5,5,3,1), oma = c(2,2,0,0))
-plot(simmat2.med[11,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(simmat2.med[sv2.idx[1],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(simmat2.25[11,], rev(simmat2.975[11,])), border = F, col = "gray")
-lines(seq(ndays), simmat2.med[11,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(simmat2.25[sv2.idx[1],], rev(simmat2.975[sv2.idx[1],])), border = F, col = "gray")
+lines(seq(ndays), simmat2.med[sv2.idx[1],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[11,i]), NA, 9)}
-points(seq(ndays), simmat2.med[11,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_smm[11,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[sv2.idx[1],i]), NA, 9)}
+points(seq(ndays), simmat2.med[sv2.idx[1],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_smm[sv2.idx[1],], lwd = 2)
 
 par(mar = c(5,5,3,1))
-plot(simmat2.med[50,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(simmat2.med[sv2.idx[2],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(simmat2.25[50,], rev(simmat2.975[50,])), border = F, col = "gray")
-lines(seq(ndays), simmat2.med[50,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(simmat2.25[sv2.idx[2],], rev(simmat2.975[sv2.idx[2],])), border = F, col = "gray")
+lines(seq(ndays), simmat2.med[sv2.idx[2],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[50,i]), NA, 9)}
-points(seq(ndays), simmat2.med[50,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_smm[50,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[sv2.idx[2],i]), NA, 9)}
+points(seq(ndays), simmat2.med[sv2.idx[2],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_smm[sv2.idx[2],], lwd = 2)
 
 par(mar = c(5,5,3,1))
-plot(simmat2.med[20,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(simmat2.med[sv2.idx[3],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(simmat2.25[20,], rev(simmat2.975[20,])), border = F, col = "gray")
-lines(seq(ndays), simmat2.med[20,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(simmat2.25[sv2.idx[3],], rev(simmat2.975[sv2.idx[3],])), border = F, col = "gray")
+lines(seq(ndays), simmat2.med[sv2.idx[3],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[20,i]), NA, 9)}
-points(seq(ndays), simmat2.med[20,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_smm[20,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(actmat[sv2.idx[3],i]), NA, 9)}
+points(seq(ndays), simmat2.med[sv2.idx[3],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_smm[sv2.idx[3],], lwd = 2)
 mtext("State", 2, cex = 2, line = -1, outer = T)
 mtext("Day", 1, cex = 2, line = -1, outer = T)
+mtext("HMM", 3, cex = 2, line = -2, outer = T)
 dev.off()
 
 
@@ -263,19 +267,15 @@ hmmmat2.25 = hmmmat2.hdi[1,,]
 hmmmat2.975 = hmmmat2.hdi[2,,]
 
 # Get RMSE for HMM (best, mid, worst trajectories will change with different simulations)
-hmmvar1.rmse = rmse(hmmsim.jags, statseq_hmm)
-hmmvar2.rmse = rmse(hmm.jags, statseq_hmm)
+hmmvar1.rmse = rmse(hmmsim.jags, statseq_hmm, acthmm)
+hmmvar2.rmse = rmse(hmm.jags, statseq_hmm, acthmm)
 
-jpeg("Plots/all_rmse.jpeg", width = 6324, height = 6324, units = 'px', res = 600)
-par(mfrow = c(2,1))
-par(mar = c(4,4,1,1), oma = c(2,2,0,0))
-plot(simvar1.rmse, simvar2.rmse, pch = 3, xlab = "", ylab = "", xlim = c(0,400), ylim = c(0,400), cex.axis = 1.5)
+jpeg("Plots/figure_5.jpeg", width = 4500, height = 3300, units = 'px', res = 600)
+par(mfrow = c(1,1), mar = c(5,5,3,1))
+plot(simvar1.rmse, simvar2.rmse, pch = 21, cex = 2, bg = "gray20", xlab = expression("Standard Markov RMSE"["s"["k"]]), ylab = expression("HMM RMSE"["s"["k"]]), cex.lab = 1.5, xlim = c(0,5), ylim = c(0,5), cex.axis = 1.5)
+points(hmmvar1.rmse, hmmvar2.rmse, pch = 22, cex = 2, bg = "gray80")
 abline(0,1)
-par(mar = c(4,4,1,1))
-plot(hmmvar1.rmse, hmmvar2.rmse, pch = 3, xlab = "", ylab = "", xlim = c(0,400), ylim = c(0,400), cex.axis = 1.5)
-abline(0,1)
-mtext(expression("Standard Markov RMSE"["s"["k"]]), 1, cex = 2, outer = T)
-mtext(expression("HMM RMSE"["s"["k"]]), 2, cex = 2, outer = T)
+legend("topleft", bty = 'n', c("D-SM", "D_HMM"), pch = c(21,22), cex = 1.5, pt.cex = 2, pt.bg = c("gray20","gray80"))
 dev.off()
 
 
@@ -326,7 +326,7 @@ pt = c(t(apply(hv1.trn.q50, 2, rev)))
 actup = c(t(apply(trnup, 2, rev)))
 actdn = c(t(apply(trndn, 2, rev)))
 
-jpeg("Plots/trn_density_hmmvar1.jpeg", width = 6324, height = 6324, units = 'px', res = 600)
+jpeg("Plots/figure_6.jpeg", width = 6324, height = 6324, units = 'px', res = 600)
 matlay = layout(matrix(c(0,1,2,3),2,2,T), c(1,15,15), c(1,15,15))
 par(mar = c(0,0,0,0))
 frame()
@@ -353,77 +353,78 @@ dev.off()
 
 ########## VII. Figure 7 ##########
 
-which.min(hmmvar1.rmse); order(hmmvar1.rmse)[25]; which.max(hmmvar1.rmse)
-which.min(hmmvar2.rmse); order(hmmvar2.rmse)[25]; which.max(hmmvar2.rmse)
+hv1.idx = c(which.min(hmmvar1.rmse), order(hmmvar1.rmse)[25], which.max(hmmvar1.rmse))
+hv2.idx = c(which.min(hmmvar2.rmse), order(hmmvar2.rmse)[25], which.max(hmmvar2.rmse))
 
 # For variation 1 applied to data set 2
-jpeg("Plots/bestmidworst_traj_hmmvar1.jpeg", width = 10800, height = 3600, units = 'px', res = 600)
+jpeg("Plots/figure_7a.jpeg", width = 9000, height = 3000, units = 'px', res = 600)
 par(mfrow = c(1,3))
 par(mar = c(5,5,3,1), oma = c(2,2,0,0))
-plot(hmmmat1.med[13,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(hmmmat1.med[hv1.idx[1],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(hmmmat1.25[13,], rev(hmmmat1.975[13,])), border = F, col = "gray")
-lines(seq(ndays), hmmmat1.med[13,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(hmmmat1.25[hv1.idx[1],], rev(hmmmat1.975[hv1.idx[1],])), border = F, col = "gray")
+lines(seq(ndays), hmmmat1.med[hv1.idx[1],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(acthmm[13,i]), NA, 9)}
-points(seq(ndays), hmmmat1.med[13,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_hmm[13,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(acthmm[hv1.idx[1],i]), NA, 9)}
+points(seq(ndays), hmmmat1.med[hv1.idx[1],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_hmm[hv1.idx[1],], lwd = 2)
 
 par(mar = c(5,5,3,1))
-plot(hmmmat1.med[20,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(hmmmat1.med[hv1.idx[2],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(hmmmat1.25[20,], rev(hmmmat1.975[20,])), border = F, col = "gray")
-lines(seq(ndays), hmmmat1.med[20,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(hmmmat1.25[hv1.idx[2],], rev(hmmmat1.975[hv1.idx[2],])), border = F, col = "gray")
+lines(seq(ndays), hmmmat1.med[hv1.idx[2],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(acthmm[20,i]), NA, 9)}
-points(seq(ndays), hmmmat1.med[20,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_hmm[20,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(acthmm[hv1.idx[2],i]), NA, 9)}
+points(seq(ndays), hmmmat1.med[hv1.idx[2],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_hmm[hv1.idx[2],], lwd = 2)
 
 par(mar = c(5,5,3,1))
-plot(hmmmat1.med[22,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(hmmmat1.med[hv1.idx[3],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(hmmmat1.25[22,], rev(hmmmat1.975[22,])), border = F, col = "gray")
-lines(seq(ndays), hmmmat1.med[22,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(hmmmat1.25[hv1.idx[3],], rev(hmmmat1.975[hv1.idx[3],])), border = F, col = "gray")
+lines(seq(ndays), hmmmat1.med[hv1.idx[3],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(acthmm[22,i]), NA, 9)}
-points(seq(ndays), hmmmat1.med[22,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_hmm[22,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(acthmm[hv1.idx[3],i]), NA, 9)}
+points(seq(ndays), hmmmat1.med[hv1.idx[3],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_hmm[hv1.idx[3],], lwd = 2)
 mtext("State", 2, cex = 2, line = -1, outer = T)
 mtext("Day", 1, cex = 2, line = -1, outer = T)
+mtext("SM", 3, cex = 2, line = -2, outer = T)
 dev.off()
 
 # For variation 2 applied to data set 2
-jpeg("Plots/bestmidworst_traj_hmmvar2.jpeg", width = 10800, height = 3600, units = 'px', res = 600)
+jpeg("Plots/figure_7b.jpeg", width = 9000, height = 3000, units = 'px', res = 600)
 par(mfrow = c(1,3))
 par(mar = c(5,5,3,1), oma = c(2,2,0,0))
-plot(hmmmat2.med[13,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(hmmmat2.med[hv2.idx[1],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(hmmmat2.25[13,], rev(hmmmat2.975[13,])), border = F, col = "gray")
-lines(seq(ndays), hmmmat2.med[13,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(hmmmat2.25[hv2.idx[1],], rev(hmmmat2.975[hv2.idx[1],])), border = F, col = "gray")
+lines(seq(ndays), hmmmat2.med[hv2.idx[1],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(acthmm[13,i]), NA, 9)}
-points(seq(ndays), hmmmat2.med[13,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_hmm[13,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(acthmm[hv2.idx[1],i]), NA, 9)}
+points(seq(ndays), hmmmat2.med[hv2.idx[1],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_hmm[hv2.idx[1],], lwd = 2)
 
 par(mar = c(5,5,3,1))
-plot(hmmmat2.med[40,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
+plot(hmmmat2.med[hv2.idx[2],], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
 axis(1, at = c(1,seq(20,100,by=20)), cex.axis = 2)
 axis(2, at = seq(10), cex.axis = 2)
 box()
-polygon(c(seq(ndays), rev(seq(ndays))), c(hmmmat2.25[40,], rev(hmmmat2.975[40,])), border = F, col = "gray")
-lines(seq(ndays), hmmmat2.med[40,], lwd = 2, lty = 3)
+polygon(c(seq(ndays), rev(seq(ndays))), c(hmmmat2.25[hv2.idx[2],], rev(hmmmat2.975[hv2.idx[2],])), border = F, col = "gray")
+lines(seq(ndays), hmmmat2.med[hv2.idx[2],], lwd = 2, lty = 3)
 ppoint = vector(length = ndays)
-for(i in 1:ndays) {ppoint[i] = ifelse(is.na(acthmm[40,i]), NA, 9)}
-points(seq(ndays), hmmmat2.med[40,], pch = ppoint, lwd = 2)
-lines(seq(ndays), statseq_hmm[40,], lwd = 2)
+for(i in 1:ndays) {ppoint[i] = ifelse(is.na(acthmm[hv2.idx[2],i]), NA, 9)}
+points(seq(ndays), hmmmat2.med[hv2.idx[2],], pch = ppoint, lwd = 2)
+lines(seq(ndays), statseq_hmm[hv2.idx[2],], lwd = 2)
 
 par(mar = c(5,5,3,1))
 plot(hmmmat1.med[26,], type = 'n', ylim = c(1,10), xlim = c(1,100), cex.lab = 2.5, axes = F, xlab = "", ylab = "")
@@ -438,6 +439,7 @@ points(seq(ndays), hmmmat2.med[26,], pch = ppoint, lwd = 2)
 lines(seq(ndays), statseq_hmm[26,], lwd = 2)
 mtext("State", 2, cex = 2, line = -1, outer = T)
 mtext("Day", 1, cex = 2, line = -1, outer = T)
+mtext("HMM", 3, cex = 2, line = -2, outer = T)
 dev.off()
 
 
@@ -461,7 +463,7 @@ y01 = c(t(apply(trnup, 2, rev)))
 hv2.trn.q50 = hmm.jags$q50$trn[1,,]
 pt = c(t(apply(hv2.trn.q50, 2, rev)))
 
-jpeg("Plots/trn_density_hmmvar2_up.jpeg", width = 6324, height = 6324, units = 'px', res = 600)
+jpeg("Plots/figure_8a.jpeg", width = 6324, height = 6324, units = 'px', res = 600)
 matlay = layout(matrix(c(0,1,2,3),2,2,T), c(1,15,15), c(1,15,15))
 par(mar = c(0,0,0,0))
 frame()
@@ -502,7 +504,7 @@ y01 = c(t(apply(trndn, 2, rev)))
 hv2.trn.q50 = hmm.jags$q50$trn[2,,]
 pt = c(t(apply(hv2.trn.q50, 2, rev)))
 
-jpeg("Plots/trn_density_hmmvar2_dn.jpeg", width = 6324, height = 6324, units = 'px', res = 600)
+jpeg("Plots/figure_8b.jpeg", width = 6324, height = 6324, units = 'px', res = 600)
 matlay = layout(matrix(c(0,1,2,3),2,2,T), c(1,15,15), c(1,15,15))
 par(mar = c(0,0,0,0))
 frame()
@@ -538,7 +540,7 @@ hmmvar2_12.hdi = hdi(hmm.jags$sims.list$hmm[,1,2])
 hmmvar2_21.hdi = hdi(hmm.jags$sims.list$hmm[,2,1])
 hmmvar2_22.hdi = hdi(hmm.jags$sims.list$hmm[,2,2])
 
-jpeg("Plots/trnhmm_density_hmmvar2.jpeg", width = 6324, height = 6324, units = 'px', res = 600)
+jpeg("Plots/figure_9.jpeg", width = 5000, height = 5000, units = 'px', res = 600)
 matlay = layout(matrix(c(1,2,3,4),2,2,T), c(1,1,1,1), c(1,1,1,1))
 layout.show(matlay)
 par(mar = c(2,5,5,0))
@@ -601,7 +603,7 @@ a0 = -5
 a1 = 10
 
 # Initialize plot
-jpeg("Plots/ab_density.jpeg", width = 8000, height = 5000, units = 'px', res = 600)
+jpeg("Plots/figure_10.jpeg", width = 8000, height = 5000, units = 'px', res = 600)
 alay = layout(matrix(c(1,1,1,1,2,3,4,5,6,6,6,6,7,8,9,10),4,4,T), rep(1,4), c(1,15,1,15)) 
 layout.show(alay)
 
@@ -640,29 +642,29 @@ lines(c(ndhmm.jags$q50$a0,ndhmm.jags$q50$a0), c(0,0.72*2.0), lwd = 2, lty = 3, c
 
 par(mar = c(5,5,3,1))
 plot(density(hmmsim.jags$sims.list$a0), xlab = expression(a[0] ~ "- Standard Markov D-HMM"), ylab = "",
-		xlim = c(-7,-4), ylim = c(0,2.0), 
+		xlim = c(-7,-4), ylim = c(0,2.5), 
 		lwd = 2, main = "", cex.lab = 1.8, axes = F)
 axis(1, cex.axis = 1.5)
-axis(2, cex.axis = 1.5, at = seq(0,2.0,0.5))
+axis(2, cex.axis = 1.5, at = seq(0,2.5,0.5))
 box()
 polygon(density(hmmsim.jags$sims.list$a0), lwd = 2, col = "gray70")
-arrows(a0.mark2[1], 0.72*2.0, a0.mark2[2], 0.72*2.0, lwd = 2, angle = 90, length = 0.1, code = 3)
-text(mean(a0.mark2), 0.8*2.0, "95% HDI", cex = 1.8)
-lines(c(a0,a0), c(0,0.72*2.0), lwd = 2, col = "gray40")
-lines(c(hmmsim.jags$q50$a0,hmmsim.jags$q50$a0), c(0,0.72*2.0), lwd = 2, lty = 3, col = "gray40")
+arrows(a0.mark2[1], 0.72*2.5, a0.mark2[2], 0.72*2.5, lwd = 2, angle = 90, length = 0.1, code = 3)
+text(mean(a0.mark2), 0.8*2.5, "95% HDI", cex = 1.8)
+lines(c(a0,a0), c(0,0.72*2.5), lwd = 2, col = "gray40")
+lines(c(hmmsim.jags$q50$a0,hmmsim.jags$q50$a0), c(0,0.72*2.5), lwd = 2, lty = 3, col = "gray40")
 
 par(mar = c(5,5,3,1))
 plot(density(hmm.jags$sims.list$a0), xlab = expression(bold(a[0] ~ "- HMM D-HMM*")), ylab = "", font.lab = 2, 
-		xlim = c(-7,-4), ylim = c(0,2.0), 
+		xlim = c(-7,-4), ylim = c(0,2.5), 
 		lwd = 2, main = "", cex.lab = 1.8, axes = F)
 axis(1, cex.axis = 1.5)
-axis(2, cex.axis = 1.5, at = seq(0,2.0,0.1))
+axis(2, cex.axis = 1.5, at = seq(0,2.5,0.5))
 box()
 polygon(density(hmm.jags$sims.list$a0), lwd = 2, col = "gray70")
-arrows(a0.hmm2[1], 0.72*2.0, a0.hmm2[2], 0.72*2.0, lwd = 2, angle = 90, length = 0.1, code = 3)
-text(mean(a0.hmm2), 0.8*2.0, "95% HDI", cex = 1.8)
-lines(c(a0,a0), c(0,0.72*2.0), lwd = 2, col = "gray40")
-lines(c(hmm.jags$q50$a0,hmm.jags$q50$a0), c(0,0.72*2.0), lwd = 2, lty = 3, col = "gray40")
+arrows(a0.hmm2[1], 0.72*2.5, a0.hmm2[2], 0.72*2.5, lwd = 2, angle = 90, length = 0.1, code = 3)
+text(mean(a0.hmm2), 0.8*2.5, "95% HDI", cex = 1.8)
+lines(c(a0,a0), c(0,0.72*2.5), lwd = 2, col = "gray40")
+lines(c(hmm.jags$q50$a0,hmm.jags$q50$a0), c(0,0.72*2.5), lwd = 2, lty = 3, col = "gray40")
 
 # Add title to second row
 par(mar = c(0,0,0,0))
