@@ -1,6 +1,6 @@
 # Weclome to hmmdiadromy
 
-The HMM folder contains all code necessary to replicate the simulation study found in Duskey and Sullivan 2021, and referenced and altered in Duskey, Higgs, Fox, Breece,
+The HMM folder contains all code necessary to replicate the simulation study found in Duskey and Sullivan 2022, and referenced and altered in Duskey, Higgs, Fox, Breece,
 and Sullivan 2022.  We will update with the full citations when the articles have been accepted for publication.  Briefly, the code can simulate migratory paths for 
 diadromous fish, and then run a Bayesian Hidden markov model (HMM) with nested Markov movement processes describing upriver and downriver migration.  The model 
 also includes a logistic model of habitat preference, and a basic model of search and detection.
@@ -27,7 +27,7 @@ Upon all subsequent uses, we recommend running the .R files in the following ord
 1. depend.R -- to set mypath
 2. RUN_hmm.R -- to simulate data and run both models for HMM data
 3. RUN_smm.R -- to simulate data and run both models for Standard Markov data
-4. allplot.R -- to recreate all simulation figures in Duskey and Sullivan 2021
+4. allplot.R -- to recreate all simulation figures in Duskey and Sullivan 2022
 
 All files not appearing here are sourced in one or more of the files listed above, and typically contain functions necessary to run the code in each script.
 
