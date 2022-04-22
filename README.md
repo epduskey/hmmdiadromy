@@ -21,7 +21,7 @@ Follow these steps prior to first time usage to ensure the code runs properly on
 
 Upon all subsequent uses, we recommend running the .R files in the following order:
 
-1. depend.R -- to set mypath
+1. depend.R -- to set mypath; alternatively, change setwd() within other R files
 2. RUN_hmm.R -- to simulate data and run both models for HMM data
 3. RUN_smm.R -- to simulate data and run both models for Standard Markov data
 4. allplot.R -- to recreate all simulation figures in Duskey and Sullivan 2021
