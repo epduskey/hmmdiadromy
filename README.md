@@ -28,8 +28,7 @@ Upon all subsequent uses, we recommend running the .R files in the following ord
 
 All files not appearing here are sourced in one or more of the files listed above, and typically contain functions necessary to run the code in each script.
 
-NOTE: There are several nearly empty output folders contained in HMM, containing only a textfile called ".keep".  These are meant to contain and organize your own output.  
-Feel free to delete the ".keep" files after downloading.  If you would like our original model output, it is available upon request.
+NOTE: There are several nearly empty output folders contained in HMM, containing only a textfile called ".keep".  These are meant to contain and organize your own output.  Feel free to delete the ".keep" files after downloading.  If you would like our original model output, it is available upon request.
 
 ## Contact us
 
