@@ -1,12 +1,16 @@
 # Run the simulation and the model
 
 # Created: May 28, 2021
-# Last modified: August 13, 2021 by EPD
+# Last modified: October 10, 2022 by EPD
 
 # Load packages
 library(lattice)
 library(jagsUI)
 library(rje)
+library(coda)
+library(mgcv)
+library(CARBayesST)
+library(mclogit)
 
 # Set working directory
 setwd(paste(mypath, "HMM", sep = ""))
@@ -18,6 +22,8 @@ setwd(paste(mypath, "HMM", sep = ""))
 #	IV. Time to look for your fish
 #	V. Run HMM
 #	VI. Run SMM
+#	VII. Run GAM
+#	VIII. Run STCAR
 
 
 ########## I. Make some fish and let them swim in your river ##########
@@ -39,8 +45,7 @@ set.seed(8074)
 #set.seed(9586)
 
 # Get a sequence of locations for your fish
-statseq = move(init, trn, trnhm, nfish, ndays)
-write.table(statseq$stat, "Data/statseq_hmm.txt")
+statseq = move(init, trn.list, trnhm, nfish, ndays)
 
 # Plot sequence of locations for your fish
 #for(i in 1:nfish) {
@@ -80,6 +85,13 @@ levelplot(occ, xlab = "Sub-state", ylab = "State", main = "Probability of occupy
 
 # Places your fish in sub-states based on the occupancy probability calculated in step II
 substat = where(statseq$stat, occ)
+statseq$sub = substat
+
+# Save all generated data
+write.table(sand, "Data/sand_hmm.txt")
+write.table(statseq$stat, "Data/statseq_hmm.txt")
+write.table(statseq$hmm, "Data/hidseq_hmm.txt")
+write.table(statseq$sub, "Data/subseq_hmm.txt")
 
 
 ########## IV. Time to look for your fish ########## 
@@ -92,9 +104,12 @@ hypobs = cut(statseq$stat, statdet)
 obs = search(rg, hypobs, substat, statdet)
 
 # Store the final results in separate matrices
-actobs = obs$actobs; actobs[,1] = 1
+allobs = obs$actobs; actobs = allobs; actobs[,1] = 1
 actsub = obs$actsub
 actdet = obs$actdet
+
+# Treat sub-states as contiguous pieces, and give labels of 1 - nstates*pcs
+allsub = allobs * pcs - (pcs - actsub)
 
 # Save observations
 write.table(actobs, "Data/acthmm.txt")
@@ -145,8 +160,8 @@ for(i in 1:nfish) {
 	yl = "State"
 	ml = paste("Fish", i, " - click anywhere to advance to the next fish")
 	plot(statseq$stat[i,], type = 'l', lwd = 2, ylim = c(1,nstates), xlab = xl, ylab = yl, main = ml)
-	lines(seq(ndays), hmm.jags$q50$s[i,], lwd = 2, lty = 2)
-	polygon(x = c(seq(ndays),rev(seq(ndays))), y = c(hmm.jags$q2.5$s[i,],rev(hmm.jags$q97.5$s[i,])), border = NA, col = rgb(0,0,0,0.5))
+	lines(seq(ndays), ceiling(hmm.jags$q50$out[i,]/pcs), lwd = 2, lty = 2)
+	polygon(x = c(seq(ndays),rev(seq(ndays))), y = ceiling(c(hmm.jags$q2.5$out[i,]/pcs,rev(hmm.jags$q97.5$out[i,]/pcs))), border = NA, col = rgb(0,0,0,0.5))
 	points(seq(ndays), actobs[i,], pch = 9, lwd = 2)
 	legend("topright", bty = 'n', c("Actual", "Median Estimated", "Observations", "95% CI"), lty = c(1,2,NA,1), pch = c(NA,NA,9,NA), lwd = c(2,2,2,10), col = c(1,1,1,rgb(0,0,0,0.5)))
 	locator(1)
@@ -189,9 +204,125 @@ for(i in 1:nfish) {
 	yl = "State"
 	ml = paste("Fish", i, " - click anywhere to advance to the next fish")
 	plot(statseq$stat[i,], type = 'l', lwd = 2, ylim = c(1,nstates), xlab = xl, ylab = yl, main = ml)
-	lines(seq(ndays), hmmsim.jags$q50$s[i,], lwd = 2, lty = 2)
-	polygon(x = c(seq(ndays),rev(seq(ndays))), y = c(hmmsim.jags$q2.5$s[i,],rev(hmmsim.jags$q97.5$s[i,])), border = NA, col = rgb(0,0,0,0.5))
+	lines(seq(ndays), ceiling(hmmsim.jags$q50$out[i,]/pcs), lwd = 2, lty = 2)
+	polygon(x = c(seq(ndays),rev(seq(ndays))), y = ceiling(c(hmmsim.jags$q2.5$out[i,]/pcs,rev(hmmsim.jags$q97.5$out[i,]/pcs))), border = NA, col = rgb(0,0,0,0.5))
 	points(seq(ndays), actobs[i,], pch = 9, lwd = 2)
 	legend("topright", bty = 'n', c("Actual", "Median Estimated", "Observations", "95% CI"), lty = c(1,2,NA,1), pch = c(NA,NA,9,NA), lwd = c(2,2,2,10), col = c(1,1,1,rgb(0,0,0,0.5)))
 	locator(1)
 }
+
+
+########## VII. Run GAM ##########
+
+# Load model scripts
+source("Code/kchoose.R")
+source("Code/wcalc.R")
+
+# Organize data into data frame (note multinom GAM requires first category to be '0')
+hmmdf = data.frame(fish = factor(rep(seq(nfish),ndays)), 
+	day = rep(seq(ndays),each=nfish), 
+	state = c(allobs),
+	sub = c(actsub))
+write.table(hmmdf, "Data/hmmdf.txt")
+
+# Run model and choose number of knots
+modlist = kchoose(df = hmmdf, obs = allobs, sub = actsub, sand = sand, tol = 0.01)
+
+# Plot edf against the number of knots
+y = do.call(rbind, modlist$edf)
+x = matrix(rep(seq(modlist$knots+1-nrow(y)+1,modlist$knots+1),nstates-1), nrow = nrow(y), ncol = ncol(y))
+par(mfrow = c(1,1))
+matplot(x, y, type = "l", xlab = "Knots", ylab = "EDF")
+legend("bottomright", bty = "n", sapply(seq(9), toString), lty = seq(9), col = seq(9), title = "State")
+
+# Run GAM model
+hmm.gam = modlist
+
+# Check the output
+summary(hmm.gam$model)
+plot(hmm.gam$model, pages = 1)
+gam.check(hmm.gam$model)
+
+# Convert observations to data frame with substates as factor
+indobs = lapply(sapply(c(allsub),data.frame), factor, levels = seq(nstates*pcs))
+
+# Count the number of fish observed in each substate on each day
+ctind = lapply(indobs, table)
+
+# Create data frame to house counts per substate
+mcldf = data.frame(count = unlist(ctind,use.names=F), state = rep(seq(nstates),each=pcs), sub = seq(pcs))
+
+# Add covariates
+mcldf$day = rep(rep(seq(ndays),each=nfish), each = nstates*pcs)
+mcldf$sand = sand[matrix(c(mcldf$sub,mcldf$state), ncol = 2)]
+mcldf$ind = rep(seq(nfish), each = nstates*pcs)
+mcldf$weight = c(sapply(c(allobs), wcalc, nstates = nstates, pcs = pcs))
+mcldf$state.day.ind = interaction(mcldf$state, mcldf$day, mcldf$ind)
+write.table(mcldf, "Data/hmmmcldf.txt")
+
+# Run occupancy model
+hmm.mcl = mclogit(count|state.day.ind ~ sand, weights = weight, random = ~0+sand|ind, data = mcldf)
+
+# Check output
+summary(hmm.mcl)
+
+# Save models
+hmm.gm = list(hmm.gam = hmm.gam, hmm.mcl = hmm.mcl)
+save(object = hmm.gm, file = "Output/hmmgam.rda")
+
+
+########## VIII. Run STCAR ##########
+
+# Convert observations to data frame with states as factor
+facobs = lapply(data.frame(allsub), factor, levels = seq(nstates*pcs))
+
+# Count the number of fish observed in each state on each day
+ctobs = lapply(facobs, table)
+
+# Store fish counts per state in KxN table with K substates and N days
+carobs = matrix(unlist(ctobs,use.names=F), nrow = nstates*pcs, ncol = ndays)
+
+# Get the number of fish observed on each day and convert to KxN matrix
+nfobs = matrix(colSums(carobs), nrow = nstates*pcs, ncol = ndays, byrow = T)
+
+# Put sand covariate in appropriate KxN format
+sandmat = matrix(c(sand), nrow = nstates*pcs, ncol = ndays)
+
+# Choose distance over which adjacent states are neighbors
+stepsize = abs(apply(actobs, 1, diff))
+nbh = median(stepsize[stepsize > 0], na.rm = T)
+
+# Create a data frame of centroids and states for river polygons
+xt = data.frame(x = rep(0,nstates*pcs), y = seq(0,nstates*pcs-1), state = rep(seq(10),each=3))
+
+# Create a simple neighborhood matrix
+distance = as.matrix(dist(xt[,c(1,3)]))
+W = array(0, c(nstates*pcs,nstates*pcs))
+W[distance %in% seq(0,nbh)] = 1
+diag(W) = 0
+
+# Use AR(1) STCAR from CARBayesST; fit 3 chains
+chain1 = ST.CARar(c(carobs) ~ c(sandmat), family = "binomial", W = W, trials = c(nfobs), 
+	burnin = 100000, n.sample = 1600000, thin = 100, AR = 1)
+chain2 = ST.CARar(c(carobs) ~ c(sandmat), family = "binomial", W = W, trials = c(nfobs), 
+	burnin = 100000, n.sample = 1600000, thin = 100, AR = 1)
+chain3 = ST.CARar(c(carobs) ~ c(sandmat), family = "binomial", W = W, trials = c(nfobs), 
+	burnin = 100000, n.sample = 1600000, thin = 100, AR = 1)
+
+# Combine chains and save
+hmm.car = list(chain1, chain2, chain3)
+save(object = hmm.car, file = "Output/hmmcar.rda")
+
+# Gather all parameters for diagnostics
+beta.samples = mcmc.list(chain1$samples$beta, chain2$samples$beta, chain3$samples$beta)
+phi.samples = mcmc.list(chain1$samples$phi, chain2$samples$phi, chain3$samples$phi)
+rho.samples = mcmc.list(chain1$samples$rho, chain2$samples$rho, chain3$samples$rho)
+tau2.samples = mcmc.list(chain1$samples$tau2, chain2$samples$tau2, chain3$samples$tau2)
+fitted.samples = mcmc.list(chain1$samples$fitted, chain2$samples$fitted, chain3$samples$fitted)
+
+# Check Gelman-Rubin
+rhbeta = gelman.diag(beta.samples, autoburnin = F, multivariate = F)
+rhphi = gelman.diag(phi.samples, autoburnin = F, multivariate = F)
+rhrho = gelman.diag(rho.samples, autoburnin = F, multivariate = F)
+rhtau2 = gelman.diag(tau2.samples, autoburnin = F, multivariate = F)
+rhfitted = gelman.diag(phi.samples, autoburnin = F, multivariate = F)

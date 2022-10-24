@@ -74,33 +74,11 @@ hack = function(pcs, nstates) {
 	rownames(ret) = paste("Pc", seq(pcs), sep = "")					
 	
 	# Call columns after river miles
-	colnames(ret) = paste("Rm", seq(nstates), sep = "")				
+	colnames(ret) = paste("St", seq(nstates), sep = "")				
 	
-	# All row indices
-	inds = seq(nstates)												
+	# Give each substate a random proportion of sand
+	ret[] = runif(nstates*pcs, 0, 1)													
 	
-	# Maximum proportion for sand (starts at 1)
-	throwmax = 1													
-	
-	# For each piece
-	for(i in seq(pcs - 1)) {										
-		
-		# Throw some sand into the river
-		throw = runif(nstates, 0, throwmax)						
-		
-		# Set first piece to result of throwing sand	
-		ret[i, ] = throw											
-		
-		# Reset throwmax to what's left
-		throwmax = 1 - throw										
-		
-		# If there's only one piece left
-		if((i+1) %% pcs == 0) {										
-			
-			# Set proportion to what's left
-			ret[i+1, ] = throwmax									
-		}
-	}
 	return(ret)
 }	
 

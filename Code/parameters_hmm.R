@@ -45,8 +45,8 @@ trndn = matrix(c(1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,		# Down-migra
 
 # Hidden markov transition matrix: probability of switching FROM (row) up-migration movement behavior TO (column) down-migration movement behavior
 trnhm = matrix(c(0.98, 0.02,							
-				 0.02, 0.98),
-				 nrow = 2, ncol = 2, byrow = T)
+			0.02, 0.98),
+			nrow = 2, ncol = 2, byrow = T)
 
 # State initial distribution (all fish start out in state 1)
 sinit = c(1, rep(0, nstates - 1))
@@ -58,7 +58,7 @@ hminit = c(1, rep(0, 1))
 init = list(sinit, hminit)		
 
 # Package all transition matrices in one list
-trn = list(trnup, trndn)
+trn.list = list(trnup, trndn)
 
 
 ########## II. Habitat parameters ##########		
@@ -67,7 +67,7 @@ trn = list(trnup, trndn)
 pcs = 3	
 
 # Choose intercept of sand preference: lower means a stronger dislike of sandless habitats
-a0 = -5						
+a0 = -5					
 
 # Choose slope of sand preference: higher means a stronger selection for sandy habitats
 a1 = 10	

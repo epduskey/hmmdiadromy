@@ -1,6 +1,4 @@
-# Standard Markov model
-
-cat("model{
+model{
 	
 	# Priors for transition matrix
 	for(i in 1:nstates) {
@@ -49,35 +47,4 @@ cat("model{
 	a0 ~ dnorm(0, 0.001)
 	a1 ~ dnorm(0, 0.001)
 	
-}", file = "Code/fishsmm_dn.jags")
-
-# Set up data, initial values, and parameters for jags
-data = list(nfish = nfish,
-			ndays = ndays,
-			nstates = nstates,
-			det = actdet,
-			grid = actsub,
-			sand = t(sand),
-			s = actobs,
-			rg = rgmat,
-			pcs = pcs)
-
-# Load function tmat to calculate via MLE
-source("Code/tmat.R")	
-	
-# Apply tmat to all observations
-trnest = tmat(actobs, 1, nstates, est = T)		
-
-# Initial values
-inits = function() {		
-	list(p = 0.5,
-		a0 = 0, a1 = 0, 
-		trn = trnest)
 }
-
-# Tracked parameters
-params = c("out", 
-		"a0",
-		"a1",
-		"trn",
-		"p")

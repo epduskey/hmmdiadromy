@@ -1,6 +1,4 @@
-# HMM model
-
-cat("model{
+model{
 	
 	# Priors for transition matrices
 	for(i in 1:nstates) {
@@ -60,45 +58,4 @@ cat("model{
 	a0 ~ dnorm(0, 0.001)
 	a1 ~ dnorm(0, 0.001)
 	
-}", file = "Code/fishhmm_dn.jags")
-
-# Set up data, initial values, and parameters for jags
-data = list(nfish = nfish,
-			ndays = ndays,
-			nstates = nstates,
-			det = actdet,
-			grid = actsub,
-			sand = t(sand),
-			s = actobs,
-			rg = rgmat,
-			pcs = pcs)
-
-# Load function tmat to calculate via MLE
-source("Code/tmat.R")	
-	
-# Apply tmat to first half of observations for up-migration
-trnup.est = tmat(actobs[,1:(ndays/2)], 1, nstates, est = T)	
-
-# Apply tmat to second half of observations for down-migration
-trndn.est = tmat(actobs[,(ndays/2+1):ndays], 1, nstates, est = T)	
-
-# Create array to house MLE for both up-migration and down-migration matrices
-trnest = array(dim = c(2,10,10))			
-trnest[1,,] = trnup.est
-trnest[2,,] = trndn.est
-
-# Initial values
-inits = function() {		
-	list(p = 0.5,
-			a0 = 0, a1 = 0, 
-			trn = trnest, 
-			hmm = matrix(c(0.9,0.1,0.1,0.9), nrow = 2, ncol = 2, byrow = T))
 }
-
-# Tracked parameters
-params = c("out",
-		"a0",
-		"a1",
-		"trn",
-		"p",
-		"hmm")
