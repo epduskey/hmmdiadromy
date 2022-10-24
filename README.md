@@ -1,6 +1,6 @@
 # Weclome to hmmdiadromy
 
-The HMM folder contains all code necessary to replicate the simulation study found in Duskey and Sullivan 2022, and referenced and altered in Duskey, Higgs, Fox, Breece, and Sullivan 2021.  We will update with the full citations when the articles have been accepted for publication.  Briefly, the code can simulate migratory paths for diadromous fish, and then run a Bayesian Hidden markov model (HMM) with nested Markov movement processes describing upriver and downriver migration.  The model also includes a logistic model of habitat preference, and a basical model of search and detection.
+The HMM folder contains all code necessary to replicate the simulation study found in Duskey and Sullivan 2022, and referenced and altered in Duskey, Higgs, Fox, Breece, and Sullivan 2022.  We will update with the full citations when the articles have been accepted for publication.  Briefly, the code can simulate migratory paths for diadromous fish, and then run a Bayesian Hidden markov model (HMM) with nested Markov movement processes describing upriver and downriver migration.  The model also includes a logistic model of habitat preference, and a basical model of search and detection.  Additional alternatives - a standard Markov model, a generalized additive model (GAM), and a spatiotemporal conditional autoregressive (STCAR) model - are also included.
 
 ## Requirements
 
@@ -28,7 +28,7 @@ Upon all subsequent uses, we recommend running the .R files in the following ord
 
 All files not appearing here are sourced in one or more of the files listed above, and typically contain functions necessary to run the code in each script.
 
-NOTE: There are several nearly empty output folders contained in HMM, containing only a textfile called ".keep".  These are meant to contain and organize your own output.  Feel free to delete the ".keep" files after downloading.  The original output is currently contained in all folders, but may be archived or replaced as you see fit.
+NOTE: All folders contain a textfile called ".keep" which briefly describes the contents within. The folder to contain model output ("Output") is empty, containing only the textfile called ".keep".  This is meant to contain and organize your own model output.  Feel free to delete the ".keep" files after downloading.  The original model output is available upon request.
 
 ## Contact us
 
