@@ -8,8 +8,8 @@ cat("model{
 			aup[i,j] ~ dgamma(1,1)
 			adn[i,j] ~ dgamma(1,1)
 		}
-		trn[1,i,1:nstates] ~ ddirich(aup[i,] + 0.1)
-		trn[2,i,1:nstates] ~ ddirich(adn[i,] + 0.1)
+		trn[1,i,1:nstates] ~ ddirich(aup[i,1:nstates] + 0.1)
+		trn[2,i,1:nstates] ~ ddirich(adn[i,1:nstates] + 0.1)
 	}
 	
 	# Hidden Markov portion of the model
@@ -23,9 +23,9 @@ cat("model{
 	# Estimate states from transition matrix
 	for(i in 1:nfish) {
 		m[i,1] <- 1
-		for(k in 2:ndays) {
-			m[i,k] ~ dcat(hmm[m[i,k-1],])
-			s[i,k] ~ dcat(trn[m[i,k],s[i,k-1],])
+		for(j in 2:ndays) {
+			m[i,j] ~ dcat(hmm[m[i,j-1],])
+			s[i,j] ~ dcat(trn[m[i,j],s[i,j-1],])
 		}
 	}
 	
@@ -49,12 +49,13 @@ cat("model{
 	}
 	for(i in 1:nfish) {
 		for(j in 1:ndays) {
+			# Grid scale occupancy drawn from categorical
 			grid[i,j] ~ dcat(pocc[s[i,j],])
 		}
 	}
 	
-	# Store both state and substate estimates
-	out = s*pcs - (pcs-grid)
+	# Store state, substate, and hidden state estimates in one value
+	out = m*0.1 + s*pcs - (pcs-grid)
 	
 	# Logistic regression priors - occupancy
 	a0 ~ dnorm(0, 0.001)

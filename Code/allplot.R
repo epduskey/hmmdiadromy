@@ -1,7 +1,7 @@
 # Loading and plotting from final simulation models
 
 # Created: January 25, 2019
-# Last modified: October 10, 2022
+# Last modified: November 10, 2022
 
 # Load packages
 library(jagsUI)
@@ -9,6 +9,7 @@ library(HDInterval)
 library(vioplot)
 library(lattice)
 library(mgcv)
+library(CARBayesST)
 library(mclogit)
 library(rje)
 
@@ -27,13 +28,14 @@ setwd(paste(mypath, "HMM", sep = ""))
 #	VI. Figure 6
 #	VII. Figure 7
 #	VIII. Figure 8
-#	IX. Figure S1
-#	X. Figure S2
-#	XI. Figure S3
-#	XII. Figure S4
-#	XIII. Figure S5
-#	XIV. Figure S6
-#	XV. Figure S7
+#	IX. Figure 9
+#	X. Figure S1
+#	XI. Figure S2
+#	XII. Figure S3
+#	XIII. Figure S4
+#	XIV. Figure S5
+#	XV. Figure S6
+#	XVI. Figure S7
 
 
 ########## 0a. Common values and functions ##########
@@ -47,9 +49,9 @@ source("Code/parameters_hmm.R")
 # RMSE for Markov models
 rmse_markov = function(mod, act, obs, type = "state") {
 	if(type == "state") {	
-		out = (rowSums(colSums(sweep(ceiling(mod$sims.list$out/pcs), 2:3, act)^2, dims = 1))/mod$mcmc.info$n.samples)/rowSums(is.na(obs))
+		out = (rowSums(colSums(sweep(ceiling(round(mod$sims.list$out)/pcs), 2:3, act)^2, dims = 1))/mod$mcmc.info$n.samples)/rowSums(is.na(obs))
 	} else if(type == "sub") {
-		out = (rowSums(colSums(sweep(mod$sims.list$out, 2:3, act)^2, dims = 1))/mod$mcmc.info$n.samples)/rowSums(is.na(obs))
+		out = (rowSums(colSums(sweep(round(mod$sims.list$out), 2:3, act)^2, dims = 1))/mod$mcmc.info$n.samples)/rowSums(is.na(obs))
 	} else {
 		stop("argument type must by either 'state' or 'sub'")
 	}
@@ -59,6 +61,12 @@ rmse_markov = function(mod, act, obs, type = "state") {
 # RMSE for GAM and CAR models
 rmse_gc = function(mod, act, obs) {	
 	out = (rowSums(colSums(sweep(mod, 2:3, act)^2, dims = 1))/dim(mod)[1])/rowSums(is.na(obs))
+	return(out)
+}
+
+# Global RMSE
+rmse_global = function(act, obs) {
+	out = sqrt(sum((act - obs)^2)/(prod(dim(act))))
 	return(out)
 }
 
@@ -72,6 +80,18 @@ load("Output/ndhmmjags.rda")
 # Load HMM model files
 load("Output/hmmjags.rda")
 load("Output/hmmsimjags.rda")
+
+# Get actual states and their median from JAGS objects
+ndhmmjags.out = round(ndhmm.jags$sims.list$out)
+ndhmmout.q50 = apply(ndhmmjags.out, c(2,3), median)
+hmmjags.out = round(hmm.jags$sims.list$out)
+hmmout.q50 = apply(hmmjags.out, c(2,3), median)
+
+# Get hidden states
+ndhmmjags.hid = (ndhmm.jags$sims.list$out - ndhmmjags.out)*10
+ndhmmhid.q50 = apply(ndhmmjags.hid, c(2,3), median)
+hmmjags.hid = (hmm.jags$sims.list$out - hmmjags.out)*10
+hmmhid.q50 = apply(hmmjags.hid, c(2,3), median)
 
 # Load GAM model files
 load("Output/simgam.rda")
@@ -95,6 +115,9 @@ statseq_hmm = as.matrix(read.table("Data/statseq_hmm.txt", header = T))
 
 # Load hidden Markov substates
 subseq_hmm = as.matrix(read.table("Data/subseq_hmm.txt", header = T))
+
+# Load hidden Markov hidden states
+hidseq_hmm = as.matrix(read.table("Data/hidseq_hmm.txt", header = T))
 
 # Read SMM, HMM, and GAM output data frames
 simdf = read.table("Data/simdf.txt", header = T)
@@ -379,7 +402,7 @@ col.traj = apply(col2rgb(color), 2, function(x) rgb(x[1], x[2], x[3], 30, maxCol
 
 # Generate credible intervals for HM trajectories from SMM and HMM 
 hmmmat1.med = ceiling(hmm.jags$q50$out/pcs)
-hmmmat1.hdi = apply(ceiling(hmm.jags$sims.list$out/pcs), c(2,3), hdi)
+hmmmat1.hdi = apply(ceiling(hmmjags.out/pcs), c(2,3), hdi)
 hmmmat1.25 = hmmmat1.hdi[1,,]
 hmmmat1.975 = hmmmat1.hdi[2,,]
 hmmmat2.med = ceiling(hmmsim.jags$q50$out/pcs)
@@ -519,27 +542,54 @@ hmmvar2.lnest = log(rmse_markov(hmm.jags, statseq_hmm, acthmm) + 1)
 hmmvar3.lnest = log(rmse_gc(hmmgam.samples, statseq_hmm, acthmm) + 1)
 hmmvar4.lnest = log(rmse_gc(aperm(array(rep(ceiling(hmmcar.samples/pcs), nfish), dim = c(10000,ndays,nfish)), c(1,3,2)), statseq_hmm, acthmm) + 1)
 
+# Get global RMSE for HMM states
+hmmvar1.glest = rmse_global(statseq_hmm, ceiling(hmmsim.jags$q50$out/pcs))
+hmmvar2.glest = rmse_global(statseq_hmm, ceiling(hmmout.q50/pcs))
+hmmvar3.glest = rmse_global(statseq_hmm, apply(hmmgam.samples, c(2,3), median))
+hmmvar4.glest = rmse_global(statseq_hmm, matrix(apply(ceiling(hmmcar.samples/pcs), 2, median), nrow = nfish, ncol = ndays, byrow = T))
+
 # Get RMSE for HMM substates
 hmmvar1.lnesb = log(rmse_markov(hmmsim.jags, statseq_hmm*pcs - (pcs-subseq_hmm), acthmm, "sub") + 1)
 hmmvar2.lnesb = log(rmse_markov(hmm.jags, statseq_hmm*pcs - (pcs-subseq_hmm), acthmm, "sub") + 1)
 hmmvar3.lnesb = log(rmse_gc(gamsub.all, statseq_hmm*pcs - (pcs-subseq_hmm), acthmm) + 1)
 hmmvar4.lnesb = log(rmse_gc(aperm(array(rep(hmmcar.samples, nfish), dim = c(10000,ndays,nfish)), c(1,3,2)), statseq_hmm*pcs - (pcs-subseq_hmm), acthmm) + 1)
 
-jpeg("Plots/figure_9.jpeg", width = 3500, height = 4800, units = 'px', res = 600)
-par(mfrow = c(2,1), mar = c(3,5,2,1), oma = c(2,1,0,5))
-plot(hmmvar2.lnest, hmmvar1.lnest, pch = 22, cex = 2, bg = "gray20", xlab = "", ylab = "", main = "State", cex.main = 1.5, xlim = c(0,2), ylim = c(0,5), cex.axis = 1.5)
-points(hmmvar2.lnest, hmmvar3.lnest, pch = 22, cex = 2, bg = "gray50")
-points(hmmvar2.lnest, hmmvar4.lnest, pch = 22, cex = 2, bg = "gray80")
+# Get global RMSE for HMM substates
+hmmvar1.glesb = rmse_global(statseq_hmm*pcs - (pcs-subseq_hmm), hmmsim.jags$q50$out)
+hmmvar2.glesb = rmse_global(statseq_hmm*pcs - (pcs-subseq_hmm), hmmout.q50)
+hmmvar3.glesb = rmse_global(statseq_hmm*pcs - (pcs-subseq_hmm), apply(gamsub.all, c(2,3), median))
+hmmvar4.glesb = rmse_global(statseq_hmm*pcs - (pcs-subseq_hmm), matrix(apply(hmmcar.samples, 2, median), nrow = nfish, ncol = ndays, byrow = T))
+
+# Initialize plot
+jpeg("Plots/figure_9.jpeg", width = 5000, height = 4000, units = 'px', res = 600)
+par(mfrow = c(2,1), mar = c(3,5,2,1), oma = c(2,1,1,7))
+alay = layout(matrix(c(1,2,3,4),2,2), c(4,1), c(1,1)) 
+layout.show(alay)
+
+# Individual RMSE plots
+plot(hmmvar2.lnest, hmmvar1.lnest, pch = 22, cex = 2, bg = "gray30", xlab = "", ylab = "", main = "State", cex.main = 1.5, xlim = c(0,2), ylim = c(0,5), cex.axis = 1.5)
+points(hmmvar2.lnest, hmmvar3.lnest, pch = 22, cex = 2, bg = "gray60")
+points(hmmvar2.lnest, hmmvar4.lnest, pch = 22, cex = 2, bg = "gray90")
 abline(0,1)
-plot(hmmvar2.lnesb, hmmvar1.lnesb, pch = 22, cex = 2, bg = "gray20", xlab = "", ylab = "", main = "Sub-state", cex.main = 1.5, xlim = c(1,4), ylim = c(0,7), axes = F); axis(1, at = seq(4), cex.axis = 1.5); axis(2, cex.axis = 1.5); box()
-points(hmmvar2.lnesb, hmmvar3.lnesb, pch = 22, cex = 2, bg = "gray50")
-points(hmmvar2.lnesb, hmmvar4.lnesb, pch = 22, cex = 2, bg = "gray80")
+plot(hmmvar2.lnesb, hmmvar1.lnesb, pch = 22, cex = 2, bg = "gray30", xlab = "", ylab = "", main = "Sub-state", cex.main = 1.5, xlim = c(1,4), ylim = c(0,7), axes = F); axis(1, at = seq(4), cex.axis = 1.5); axis(2, cex.axis = 1.5); box()
+points(hmmvar2.lnesb, hmmvar3.lnesb, pch = 22, cex = 2, bg = "gray60")
+points(hmmvar2.lnesb, hmmvar4.lnesb, pch = 22, cex = 2, bg = "gray90")
 abline(0,1)
-par(fig = c(0,1,0,1), oma = c(0,0,0,0), mar = c(0,0,0,0), new = T)
+
+# Global RMSE barplots
+par(mar = c(3,0,2,0))
+barplot(c(hmmvar2.glest,hmmvar1.glest,hmmvar3.glest,hmmvar4.glest), xlim = c(0,5), horiz = T, axes = F, col = c("gray0","gray30","gray60","gray90"))
+axis(3, at = seq(0,5), cex.axis = 1)
+barplot(c(hmmvar2.glesb,hmmvar1.glesb,hmmvar3.glesb,hmmvar4.glesb), xlim = c(0,15), cex.axis = 1.5, horiz = T, axes = F, col = c("gray0","gray30","gray60","gray90"))
+axis(3, at = seq(0,15,3), cex.axis = 1)
+
+# Axis labels and legend
+par(fig = c(0,1,0,1), oma = c(0,0,0,7), mar = c(0,0,0,0), new = T)
 mtext(expression("Native Model RMSE"["s"["k"]]), side = 1, line = -1, cex = 1.5, outer = T)
 mtext(expression("Alternative Model RMSE"["s"["k"]]), side = 2, line = -2, cex = 1.5, outer = T)
+par(fig = c(0,1,0,1), oma = c(0,0,0,0), mar = c(0,0,0,0), new = T)
 plot(0, 0, type = 'l', bty = 'n', xaxt = 'n', yaxt = 'n')
-legend("right", bty = 'n', c("SMM","GAM","STCAR"), pt.bg = c("gray20","gray50","gray80"), pch = 22, pt.cex = 1.5, xpd = TRUE, cex = 1.2)
+legend("right", bty = 'n', c("STCAR","GAM","SMM","HMM"), pt.bg = c("gray90","gray60","gray30","gray0"), pch = 22, pt.cex = 1.5, xpd = TRUE, cex = 1.2)
 dev.off()
 
 
@@ -743,8 +793,8 @@ simmat1.med = ceiling(sim.jags$q50$out/pcs)
 simmat1.hdi = apply(ceiling(sim.jags$sims.list$out/pcs), c(2,3), hdi)
 simmat1.25 = simmat1.hdi[1,,]
 simmat1.975 = simmat1.hdi[2,,]
-simmat2.med = ceiling(ndhmm.jags$q50$out/pcs)
-simmat2.hdi = apply(ceiling(ndhmm.jags$sims.list$out/pcs), c(2,3), hdi)
+simmat2.med = ceiling(ndhmmout.q50/pcs)
+simmat2.hdi = apply(ceiling(ndhmmjags.out/pcs), c(2,3), hdi)
 simmat2.25 = simmat2.hdi[1,,]
 simmat2.975 = simmat2.hdi[2,,]
 
@@ -880,14 +930,31 @@ simvar2.lnest = log(rmse_markov(ndhmm.jags, statseq_smm, actmat) + 1)
 simvar3.lnest = log(rmse_gc(simgam.samples, statseq_smm, actmat) + 1)
 simvar4.lnest = log(rmse_gc(aperm(array(rep(ceiling(simcar.samples/pcs), nfish), dim = c(10000,ndays,nfish)), c(1,3,2)), statseq_smm, actmat) + 1)
 
+# Get global RMSE for HMM states
+simvar1.glest = rmse_global(statseq_smm, ceiling(sim.jags$q50$out/pcs))
+simvar2.glest = rmse_global(statseq_smm, ceiling(ndhmmout.q50/pcs))
+simvar3.glest = rmse_global(statseq_smm, apply(simgam.samples, c(2,3), median))
+simvar4.glest = rmse_global(statseq_smm, matrix(apply(ceiling(simcar.samples/pcs), 2, median), nrow = nfish, ncol = ndays, byrow = T))
+
 # Get RMSE for SMM substates
 simvar1.lnesb = log(rmse_markov(sim.jags, statseq_smm*pcs - (pcs-subseq_smm), actmat, "sub") + 1)
 simvar2.lnesb = log(rmse_markov(ndhmm.jags, statseq_smm*pcs - (pcs-subseq_smm), actmat, "sub") + 1)
 simvar3.lnesb = log(rmse_gc(gamsim.all, statseq_smm*pcs - (pcs-subseq_smm), actmat) + 1)
 simvar4.lnesb = log(rmse_gc(aperm(array(rep(simcar.samples, nfish), dim = c(10000,ndays,nfish)), c(1,3,2)), statseq_smm*pcs - (pcs-subseq_smm), actmat) + 1)
 
-jpeg("Plots/figure_S7.jpeg", width = 3500, height = 4800, units = 'px', res = 600)
-par(mfrow = c(2,1), mar = c(3,5,2,1), oma = c(2,1,0,5))
+# Get global RMSE for HMM substates
+simvar1.glesb = rmse_global(statseq_smm*pcs - (pcs-subseq_hmm), sim.jags$q50$out)
+simvar2.glesb = rmse_global(statseq_smm*pcs - (pcs-subseq_hmm), ndhmmout.q50)
+simvar3.glesb = rmse_global(statseq_smm*pcs - (pcs-subseq_hmm), apply(gamsim.all, c(2,3), median))
+simvar4.glesb = rmse_global(statseq_smm*pcs - (pcs-subseq_hmm), matrix(apply(simcar.samples, 2, median), nrow = nfish, ncol = ndays, byrow = T))
+
+# Initialize plot
+jpeg("Plots/figure_S7.jpeg", width = 5000, height = 4000, units = 'px', res = 600)
+par(mfrow = c(2,1), mar = c(3,5,2,1), oma = c(2,1,1,7))
+alay = layout(matrix(c(1,2,3,4),2,2), c(4,1), c(1,1)) 
+layout.show(alay)
+
+# Individual RMSE plots
 plot(simvar1.lnest, simvar2.lnest, pch = 22, cex = 2, bg = "gray20", xlab = "", ylab = "", main = "State", cex.main = 1.5, xlim = c(0.75,1.75), ylim = c(0,3.5), axes = F); axis(1, cex.axis = 1.5); axis(2, at = seq(0,3), cex.axis = 1.5); box()
 points(simvar1.lnest, simvar3.lnest, pch = 22, cex = 2, bg = "gray50")
 points(simvar1.lnest, simvar4.lnest, pch = 22, cex = 2, bg = "gray80")
@@ -896,11 +963,21 @@ plot(simvar2.lnesb, simvar1.lnesb, pch = 22, cex = 2, bg = "gray20", xlab = "", 
 points(simvar2.lnesb, simvar3.lnesb, pch = 22, cex = 2, bg = "gray50")
 points(simvar2.lnesb, simvar4.lnesb, pch = 22, cex = 2, bg = "gray80")
 abline(0,1)
-par(fig = c(0,1,0,1), oma = c(0,0,0,0), mar = c(0,0,0,0), new = T)
+
+# Global RMSE barplots
+par(mar = c(3,0,2,0))
+barplot(c(simvar2.glest,simvar1.glest,simvar3.glest,simvar4.glest), xlim = c(0,3), horiz = T, axes = F, col = c("gray0","gray30","gray60","gray90"))
+axis(3, at = seq(0,3), cex.axis = 1)
+barplot(c(simvar2.glesb,simvar1.glesb,simvar3.glesb,simvar4.glesb), xlim = c(0,8), cex.axis = 1.5, horiz = T, axes = F, col = c("gray0","gray30","gray60","gray90"))
+axis(3, at = seq(0,8,2), cex.axis = 1)
+
+# Axis labels and legend
+par(fig = c(0,1,0,1), oma = c(0,0,0,7), mar = c(0,0,0,0), new = T)
 mtext(expression("Native Model RMSE"["s"["k"]]), side = 1, line = -1, cex = 1.5, outer = T)
 mtext(expression("Alternative Model RMSE"["s"["k"]]), side = 2, line = -2, cex = 1.5, outer = T)
+par(fig = c(0,1,0,1), oma = c(0,0,0,0), mar = c(0,0,0,0), new = T)
 plot(0, 0, type = 'l', bty = 'n', xaxt = 'n', yaxt = 'n')
-legend("right", bty = 'n', c("HMM","GAM","STCAR"), pt.bg = c("gray20","gray50","gray80"), pch = 22, pt.cex = 1.5, xpd = TRUE, cex = 1.2)
+legend("right", bty = 'n', c("STCAR","GAM","SMM","HMM"), pt.bg = c("gray90","gray60","gray30","gray0"), pch = 22, pt.cex = 1.5, xpd = TRUE, cex = 1.2)
 dev.off()
 
 
