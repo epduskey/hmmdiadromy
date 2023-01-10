@@ -14,7 +14,7 @@ library(mclogit)
 library(rje)
 
 # Set working directory
-setwd(paste(mypath, "HMM", sep = ""))
+setwd(paste(mypath, "hmmdiadromy-main", sep = ""))
 
 # Contents (ctrl-f):
 #	0a. Common values and functions
