@@ -8,4 +8,4 @@
 #install.packages("vioplot")
 
 # Set path to HMM
-mypath = "/Users/epdus/OneDrive/School/Research/"
+mypath = ""
