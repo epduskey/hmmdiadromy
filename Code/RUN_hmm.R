@@ -13,7 +13,7 @@ library(CARBayesST)
 library(mclogit)
 
 # Set working directory
-setwd(paste(mypath, "HMM", sep = ""))
+setwd(paste(mypath, "hmmdiadromy-main", sep = ""))
 
 # Contents (ctrl-f):
 #	I. Make some fish and let swim in your river
